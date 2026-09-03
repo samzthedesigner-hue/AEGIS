@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AEGIS Knowledge Engine</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #1a1a2e;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            padding: 20px;
+        }
+        .container {
+            width: 90%;
+            max-width: 800px;
+            text-align: center;
+        }
+        .logo {
+            font-size: 48px;
+            margin-bottom: 30px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        .search-box {
+            width: 100%;
+            padding: 18px 25px;
+            font-size: 18px;
+            border: 3px solid #4a4a8a;
+            border-radius: 50px;
+            outline: none;
+            background: #16213e;
+            color: white;
+            transition: all 0.3s;
+        }
+        .search-box:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 30px rgba(102,126,234,0.3);
+        }
+        .search-box::placeholder { color: #666; }
+        .search-type {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+        .search-type button {
+            padding: 8px 16px;
+            background: #16213e;
+            color: #ccc;
+            border: 1px solid #4a4a8a;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        .search-type button:hover, .search-type button.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        .results {
+            margin-top: 30px;
+            text-align: left;
+        }
+        .result-item {
+            background: #16213e;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 15px;
+            border-left: 5px solid #667eea;
+            transition: transform 0.2s;
+        }
+        .result-item:hover { transform: translateX(10px); }
+        .result-title {
+            color: #667eea;
+            font-size: 20px;
+            font-weight: bold;
+            text-decoration: none;
+            display: block;
+        }
+        .result-url {
+            color: #4ade80;
+            font-size: 14px;
+            margin-top: 5px;
+            word-break: break-all;
+        }
+        .result-snippet {
+            color: #ccc;
+            margin-top: 10px;
+            line-height: 1.5;
+        }
+        .result-source {
+            color: #888;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        .status-bar {
+            margin-top: 30px;
+            font-size: 14px;
+            color: #666;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4ade80;
+            margin-right: 5px;
+            animation: blink 1s infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        .loading {
+            display: none;
+            margin-top: 30px;
+            color: #667eea;
+            font-size: 18px;
+        }
+        .loading.show { display: block; }
+        .news-section {
+            margin-top: 30px;
+            text-align: left;
+        }
+        .news-item {
+            padding: 10px;
+            border-bottom: 1px solid #2a2a4a;
+        }
+        .news-item a {
+            color: #ccc;
+            text-decoration: none;
+        }
+        .news-item a:hover { color: #667eea; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🔍</div>
+        <h1 style="margin-bottom:20px;">AEGIS Knowledge Engine</h1>
+        <input type="text" class="search-box" placeholder="Search the web..." id="searchInput" autofocus>
+        <div class="search-type">
+            <button data-type="all" class="active">All</button>
+            <button data-type="general">Web</button>
+            <button data-type="programming">Programming</button>
+            <button data-type="academic">Academic</button>
+            <button data-type="books">Books</button>
+            <button data-type="news">News</button>
+            <button data-type="social">Social</button>
+            <button data-type="education">Education</button>
+        </div>
+        <div class="loading" id="loading">Searching...</div>
+        <div class="results" id="results"></div>
+        <div class="news-section" id="newsSection" style="display:none;">
+            <h2 style="margin-bottom:15px;">📰 Latest News</h2>
+            <div id="newsFeed"></div>
+        </div>
+        <div class="status-bar">
+            <span class="dot"></span>
+            <span id="status">Connected</span> |
+            Active clients: <span id="clientCount">0</span>
+        </div>
+    </div>
+
+    <script>
+        const clientId = 'web-' + Math.random().toString(36).substr(2, 9);
+        const searchInput = document.getElementById('searchInput');
+        const resultsDiv = document.getElementById('results');
+        const clientCount = document.getElementById('clientCount');
+        const loading = document.getElementById('loading');
+        const newsSection = document.getElementById('newsSection');
+        const newsFeed = document.getElementById('newsFeed');
+        let currentType = 'all';
+
+        // Register client
+        fetch('/api/register', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ clientId })
+        });
+
+        // Heartbeat every 30 seconds
+        setInterval(() => {
+            fetch('/api/heartbeat', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ clientId })
+            }).then(r => r.json()).then(data => {
+                clientCount.textContent = data.activeClients;
+            });
+        }, 30000);
+
+        // Search type buttons
+        document.querySelectorAll('.search-type button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.search-type button').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentType = btn.dataset.type;
+            });
+        });
+
+        // Search on Enter
+        searchInput.addEventListener('keypress', async (e) => {
+            if (e.key === 'Enter' && searchInput.value.trim()) {
+                const query = searchInput.value;
+                loading.classList.add('show');
+                resultsDiv.innerHTML = '';
+                try {
+                    const response = await fetch('/api/search?q=' + encodeURIComponent(query) + '&type=' + currentType);
+                    const data = await response.json();
+                    displayResults(data.results);
+                } catch (err) {
+                    resultsDiv.innerHTML = '<p>Error: ' + err.message + '</p>';
+                }
+                loading.classList.remove('show');
+            }
+        });
+
+        function displayResults(results) {
+            if (!results || results.length === 0) {
+                resultsDiv.innerHTML = '<p style="color:#666;">No results found</p>';
+                return;
+            }
+            resultsDiv.innerHTML = results.map(r =>
+                '<div class="result-item">' +
+                    '<a class="result-title" href="' + r.url + '" target="_blank">' + r.title + '</a>' +
+                    '<div class="result-url">' + r.url + '</div>' +
+                    '<div class="result-snippet">' + (r.snippet || '') + '</div>' +
+                    '<div class="result-source">Source: ' + (r.source || 'unknown') + ' | Type: ' + (r.type || 'web') + '</div>' +
+                '</div>'
+            ).join('');
+        }
+
+        // Load news
+        fetch('/api/news?category=all&limit=10')
+            .then(r => r.json())
+            .then(data => {
+                if (data.news && data.news.length > 0) {
+                    newsSection.style.display = 'block';
+                    newsFeed.innerHTML = data.news.map(n =>
+                        '<div class="news-item"><a href="' + n.url + '" target="_blank">' + n.title + '</a></div>'
+                    ).join('');
+                }
+            })
+            .catch(() => {});
+
+        // Clean disconnect
+        window.addEventListener('beforeunload', () => {
+            fetch('/api/disconnect', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ clientId })
+            });
+        });
+    </script>
+</body>
+  </html>
