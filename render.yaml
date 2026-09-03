@@ -1,0 +1,30 @@
+# Render deployment configuration
+
+services:
+  - type: web
+    name: aegis-knowledge-engine
+    env: python
+    region: oregon
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r requirements.txt
+      mkdir -p data/web_ui data/downloads data/cache /tmp/addons
+    startCommand: gunicorn server:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: RENDER_EXTERNAL_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        sync: false
+      - key: PORT
+        value: 10000
+    plan: free
