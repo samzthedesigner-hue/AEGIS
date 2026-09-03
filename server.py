@@ -15,7 +15,6 @@ from search.crawler import WebCrawler
 from search.ranker import ResultRanker
 from downloads.manager import DownloadManager
 from news.feed import NewsFeedManager
-from auth.google_auth import GoogleAuthManager
 from addons.manager import AddonManager
 from security.safe_browsing import SafeBrowsingChecker
 from security.privacy import PrivacyManager
@@ -41,7 +40,6 @@ crawler = WebCrawler(config)
 ranker = ResultRanker()
 download_manager = DownloadManager(config, relay_manager)
 news_manager = NewsFeedManager(config, cache_manager)
-auth_manager = GoogleAuthManager(config)
 addon_manager = AddonManager(config)
 safe_browsing = SafeBrowsingChecker(config)
 privacy_manager = PrivacyManager(config)
@@ -263,26 +261,6 @@ def get_news():
 def trending_topics():
     trends = news_manager.get_trending()
     return jsonify({'trending': trends})
-
-@app.route('/api/auth/google/login', methods=['GET'])
-def google_login():
-    auth_url = auth_manager.get_auth_url()
-    return jsonify({'authUrl': auth_url})
-
-@app.route('/api/auth/google/callback', methods=['GET'])
-def google_callback():
-    code = request.args.get('code')
-    if not code:
-        return jsonify({'error': 'Missing code'}), 400
-    token = auth_manager.exchange_code(code)
-    user_info = auth_manager.get_user_info(token)
-    relay_manager.log_auth(user_info.get('email', 'unknown'), 'login')
-    return jsonify({'token': token, 'user': user_info})
-
-@app.route('/api/auth/logout', methods=['POST'])
-def logout():
-    relay_manager.log_auth('', 'logout')
-    return jsonify({'status': 'logged_out'})
 
 @app.route('/api/addons/list', methods=['GET'])
 def list_addons():
